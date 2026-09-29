@@ -31,24 +31,65 @@ use qtype_coderunner\constants;
 
 class qbehaviour_adaptive_adapted_for_coderunner_renderer extends qbehaviour_adaptive_renderer
 {
+    // public function controls(question_attempt $qa, question_display_options $options) {
+    //     $question = $qa->get_question();
+    //     $buttons = '';
+    //     if (!empty($question->precheck)) {
+    //         $buttons .= $this->precheck_button($qa, $options);
+    //     }
+    //     if (!$question->hidecheck) {
+    //         // We want check to be a primary button, to contrast with the others.
+    //         $buttons .= str_replace('btn-secondary', 'btn-primary',
+    //                 $this->submit_button($qa, $options));
+    //     }
+    //     if ($qa->get_behaviour()->is_give_up_avaiable_now()) {
+    //         // Put in the space with a flex-grow div, not margins,
+    //         // because that works with both LTR and RTL languages.
+    //         $buttons .= html_writer::div('', 'flex-grow-1');
+    //         $buttons .= $this->give_up_button($qa, $options);
+    //     }
+    //     return html_writer::div($buttons, 'd-flex');
+    // }
     public function controls(question_attempt $qa, question_display_options $options) {
+        $custom_html = '';
+        $max_checks = 0;
+        
+        // 1. Get the max_checks parameter from the question
         $question = $qa->get_question();
-        $buttons = '';
-        if (!empty($question->precheck)) {
-            $buttons .= $this->precheck_button($qa, $options);
+        if (!empty($question->templateparams)) {
+            $params = json_decode($question->templateparams, true);
+            if (isset($params['max_checks'])) {
+                $max_checks = (int)$params['max_checks'];
+            }
         }
-        if (!$question->hidecheck) {
-            // We want check to be a primary button, to contrast with the others.
-            $buttons .= str_replace('btn-secondary', 'btn-primary',
-                    $this->submit_button($qa, $options));
+    
+        if ($max_checks > 0) {
+            // 2. Count the actual checks by iterating over the student's attempt steps
+            $current_checks = 0;
+            foreach ($qa->get_step_iterator() as $step) {
+                // In Moodle, clicking 'Check' triggers the 'submit' behaviour variable
+                if ($step->has_behaviour_var('submit')) {
+                    $current_checks++;
+                }
+            }
+            
+            $checks_left = max(0, $max_checks - $current_checks);
+            
+            // 3. Create the UI message
+            $message = "You have {$checks_left} checks left.";
+            $custom_html .= html_writer::tag('div', $message, array(
+                'class' => 'alert alert-info mt-2 mb-2',
+                'style' => 'display: inline-block;'
+            ));
+            
+            // 4. Hide the button if limits are reached
+            if ($checks_left <= 0) {
+                return $custom_html; 
+            }
         }
-        if ($qa->get_behaviour()->is_give_up_avaiable_now()) {
-            // Put in the space with a flex-grow div, not margins,
-            // because that works with both LTR and RTL languages.
-            $buttons .= html_writer::div('', 'flex-grow-1');
-            $buttons .= $this->give_up_button($qa, $options);
-        }
-        return html_writer::div($buttons, 'd-flex');
+    
+        // 5. If they still have checks, append the standard Moodle/CodeRunner buttons
+        return $custom_html . parent::controls($qa, $options);
     }
 
     /**
