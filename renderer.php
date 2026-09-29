@@ -50,6 +50,50 @@ class qbehaviour_adaptive_adapted_for_coderunner_renderer extends qbehaviour_ada
     //     }
     //     return html_writer::div($buttons, 'd-flex');
     // }
+
+    // // HIDES CHECK BASED ON N
+    // public function controls(question_attempt $qa, question_display_options $options) {
+    //     $custom_html = '';
+    //     $max_checks = 0;
+        
+    //     // 1. Get the max_checks parameter from the question
+    //     $question = $qa->get_question();
+    //     if (!empty($question->templateparams)) {
+    //         $params = json_decode($question->templateparams, true);
+    //         if (isset($params['max_checks'])) {
+    //             $max_checks = (int)$params['max_checks'];
+    //         }
+    //     }
+    
+    //     if ($max_checks > 0) {
+    //         // 2. Count the actual checks by iterating over the student's attempt steps
+    //         $current_checks = 0;
+    //         foreach ($qa->get_step_iterator() as $step) {
+    //             // In Moodle, clicking 'Check' triggers the 'submit' behaviour variable
+    //             if ($step->has_behaviour_var('submit')) {
+    //                 $current_checks++;
+    //             }
+    //         }
+            
+    //         $checks_left = max(0, $max_checks - $current_checks);
+            
+    //         // 3. Create the UI message
+    //         $message = "You have {$checks_left} checks left.";
+    //         $custom_html .= html_writer::tag('div', $message, array(
+    //             'class' => 'alert alert-info mt-2 mb-2',
+    //             'style' => 'display: inline-block;'
+    //         ));
+            
+    //         // 4. Hide the button if limits are reached
+    //         if ($checks_left <= 0) {
+    //             return $custom_html; 
+    //         }
+    //     }
+    
+    //     // 5. If they still have checks, append the standard Moodle/CodeRunner buttons
+    //     return $custom_html . parent::controls($qa, $options);
+    // }
+
     public function controls(question_attempt $qa, question_display_options $options) {
         $custom_html = '';
         $max_checks = 0;
@@ -67,7 +111,6 @@ class qbehaviour_adaptive_adapted_for_coderunner_renderer extends qbehaviour_ada
             // 2. Count the actual checks by iterating over the student's attempt steps
             $current_checks = 0;
             foreach ($qa->get_step_iterator() as $step) {
-                // In Moodle, clicking 'Check' triggers the 'submit' behaviour variable
                 if ($step->has_behaviour_var('submit')) {
                     $current_checks++;
                 }
@@ -75,22 +118,38 @@ class qbehaviour_adaptive_adapted_for_coderunner_renderer extends qbehaviour_ada
             
             $checks_left = max(0, $max_checks - $current_checks);
             
-            // 3. Create the UI message
-            $message = "You have {$checks_left} checks left.";
-            $custom_html .= html_writer::tag('div', $message, array(
-                'class' => 'alert alert-info mt-2 mb-2',
-                'style' => 'display: inline-block;'
-            ));
-            
-            // 4. Hide the button if limits are reached
+            // 3. Hide the button if limits are reached
             if ($checks_left <= 0) {
                 return $custom_html; 
             }
+
+            // 4. Determine color and message based on remaining checks
+            // ceil() rounds up, so if max_checks is 5, half_checks is 3.
+            $half_checks = ceil($max_checks / 2);
+
+            if ($checks_left == 1) {
+                $alert_class = 'alert-danger'; // Red text/background
+                $message = "Warning: Only 1 check left!";
+            } elseif ($checks_left <= $half_checks) {
+                $alert_class = 'alert-warning'; // Orange text/background
+                $message = "You have {$checks_left} checks left.";
+            } else {
+                $alert_class = 'alert-info'; // Blue text/background
+                $message = "You have {$checks_left} checks left.";
+            }
+            
+            // 5. Create the UI message
+            // Added margin-right and margin-bottom to separate it from the check button
+            $custom_html .= html_writer::tag('div', $message, array(
+                'class' => 'alert ' . $alert_class,
+                'style' => 'display: inline-block; padding: 8px 15px; margin-right: 15px; margin-bottom: 10px;'
+            ));
         }
     
-        // 5. If they still have checks, append the standard Moodle/CodeRunner buttons
+        // 6. If they still have checks, append the standard Moodle/CodeRunner buttons
         return $custom_html . parent::controls($qa, $options);
     }
+    
 
     /**
      * Construct the HTML for the optional 'precheck' button, which triggers
